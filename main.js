@@ -124,13 +124,13 @@ function loadGLB(url) {
 const CHAPTER_ORDER = ['origin', 'racer', 'tuned', 'modern'];
 
 const MODELS = {
-  origin: { url: 'm3-e30.glb', size: 4.2, label: 'ORIGIN — 1986' },
-  racer: { url: 'm3-gtr-e46-2001.glb', size: 4.35, label: 'RACER — 2001' },
-  tuned: { url: 'm3-gtr-e46-schnitzer.glb', size: 4.45, label: 'TUNED — SCHNITZER' },
-  modern: { url: 'm3-g81-touring.glb', size: 4.6, label: 'MODERN — 2022' },
+  origin: { url: 'assets/models/m3-e30.glb', size: 4.2, label: 'ORIGIN — 1986' },
+  racer: { url: 'assets/models/m3-gtr-e46-2001.glb', size: 4.35, label: 'RACER — 2001' },
+  tuned: { url: 'assets/models/m3-gtr-e46-schnitzer.glb', size: 4.45, label: 'TUNED — SCHNITZER' },
+  modern: { url: 'assets/models/m3-g81-touring.glb', size: 4.6, label: 'MODERN — 2022' },
 };
 
-const LOGO_URL = 'm-logo.glb';
+const LOGO_URL = 'assets/models/m-logo.glb';
 
 /* Camera "drone" arc per chapter — angle in radians (measured around Y),
    radius and height in world units. Every chapter sweeps the camera in
@@ -147,8 +147,8 @@ const CAMERA_ARCS = {
    Chapter-switch transition tuning
 --------------------------------------------------------- */
 const SIDE_DISTANCE = 7.5;       // how far off-screen a car slides, world units
-const TRANSITION_DUR = 1.75;     // seconds — long + eased for an "extra smooth" feel
-const TRANSITION_EASE = 'power4.inOut';
+const TRANSITION_DUR = 1.45;     // seconds — smooth but not sluggish
+const TRANSITION_EASE = 'power3.inOut';
 const SWOOSH_ROTATION = 0.14;    // subtle extra rotation while sliding, radians
 
 const state = {
@@ -251,41 +251,53 @@ function buildExplodeParts(root) {
 
 /* ---------------------------------------------------------
    Whole-car opacity helpers (for the cross-fade transition)
+   Walking the full node tree of a ~460-mesh model on every single
+   animation frame (twice — once for the outgoing car, once for the
+   incoming one) is what was making the transition stutter. Instead,
+   each root's materials are collected into a flat array exactly once
+   and cached; every subsequent fade just loops over that flat array,
+   and transparent/depthWrite are flipped only at the start and end of
+   a fade rather than on every frame in between.
 --------------------------------------------------------- */
-function ensureOpacityCache(root) {
-  if (root.userData.__opacityCached) return;
+function collectMaterials(root) {
+  if (root.userData.__materials) return root.userData.__materials;
+  const materials = [];
+  const seen = new Set();
   root.traverse((n) => {
     if (n.isMesh && n.material) {
       const mats = Array.isArray(n.material) ? n.material : [n.material];
       mats.forEach((m) => {
-        if (m.userData.__baseOpacity === undefined) {
-          m.userData.__baseOpacity = m.opacity;
-          m.userData.__baseTransparent = !!m.transparent;
-          m.userData.__baseDepthWrite = m.depthWrite;
-        }
+        if (seen.has(m.uuid)) return;
+        seen.add(m.uuid);
+        m.userData.__baseOpacity = m.opacity;
+        m.userData.__baseTransparent = !!m.transparent;
+        m.userData.__baseDepthWrite = m.depthWrite;
+        materials.push(m);
       });
     }
   });
-  root.userData.__opacityCached = true;
+  root.userData.__materials = materials;
+  return materials;
 }
 
-// Scales every material's opacity by `t` (0 = invisible, 1 = original).
-// While fading, materials are forced transparent with depth-write off so
-// the incoming and outgoing cars blend cleanly instead of fighting the
-// depth buffer; both are restored once a car settles fully in or out.
-function setRootOpacity(root, t) {
-  ensureOpacityCache(root);
-  const fading = t < 0.999;
-  root.traverse((n) => {
-    if (n.isMesh && n.material) {
-      const mats = Array.isArray(n.material) ? n.material : [n.material];
-      mats.forEach((m) => {
-        m.opacity = m.userData.__baseOpacity * Math.max(t, 0);
-        m.transparent = fading ? true : m.userData.__baseTransparent;
-        m.depthWrite = fading ? false : m.userData.__baseDepthWrite;
-      });
-    }
-  });
+// Flips every material into (or out of) transparent/no-depth-write mode.
+// Called once when a fade starts and once when it ends — not per frame.
+function setFadeMode(materials, fading) {
+  for (let i = 0; i < materials.length; i++) {
+    const m = materials[i];
+    m.transparent = fading ? true : m.userData.__baseTransparent;
+    m.depthWrite = fading ? false : m.userData.__baseDepthWrite;
+  }
+}
+
+// Cheap per-frame step: just scales opacity across the pre-collected
+// flat array, no scene-graph walking.
+function setMaterialsOpacity(root, materials, t) {
+  const tt = Math.max(0, Math.min(1, t));
+  for (let i = 0; i < materials.length; i++) {
+    materials[i].opacity = materials[i].userData.__baseOpacity * tt;
+  }
+  root.userData.__opacityFactor = tt;
 }
 
 /* ---------------------------------------------------------
@@ -301,16 +313,20 @@ function setupChapter(key, gltf) {
   state.chapters[key] = { root, parts, ready: true };
   buildChapterScrub(key);
 
+  // Collect + cache this car's materials now, while it's loading, instead
+  // of the first time it fades — keeps the first transition just as smooth
+  // as every later one.
+  collectMaterials(root);
+  root.userData.__opacityFactor = 1;
+
   if (state.activeChapter === key) {
     // The visitor is already on this chapter and the model only just
     // finished loading in the background — reveal it directly at rest
     // rather than replaying the slide-in.
     root.visible = true;
     root.position.x = 0;
-    setRootOpacity(root, 1);
   } else {
     root.visible = false;
-    setRootOpacity(root, 0);
   }
 }
 
@@ -327,7 +343,11 @@ function buildChapterScrub(key) {
       trigger: sectionEl,
       start: 'top top',
       end: 'bottom top',
-      scrub: true,
+      // A numeric scrub value smooths the animation's catch-up to the
+      // scroll position instead of snapping to it exactly every frame —
+      // this is what makes the camera arc and part-assembly read as
+      // fluid motion rather than following each raw wheel/trackpad tick.
+      scrub: 0.85,
     },
   });
 
@@ -382,39 +402,61 @@ function animateSlideOut(root, dir) {
   if (!root) return;
   gsap.killTweensOf(root.position);
   gsap.killTweensOf(root.rotation);
-  root.position.x = root.position.x || 0;
+  if (root.userData.__fadeProxy) gsap.killTweensOf(root.userData.__fadeProxy);
+
+  const materials = collectMaterials(root);
+  setFadeMode(materials, true);
+
   gsap.to(root.position, {
     x: -dir * SIDE_DISTANCE,
     duration: TRANSITION_DUR,
     ease: TRANSITION_EASE,
   });
   gsap.to(root.rotation, {
-    y: root.rotation.y - dir * SWOOSH_ROTATION,
+    y: -dir * SWOOSH_ROTATION,
     duration: TRANSITION_DUR,
     ease: TRANSITION_EASE,
   });
-  const proxy = { t: 1 };
+
+  // Continue from whatever opacity it's actually at right now, so
+  // interrupting an in-progress fade-in never pops.
+  const startT = root.userData.__opacityFactor !== undefined ? root.userData.__opacityFactor : 1;
+  const proxy = { t: startT };
+  root.userData.__fadeProxy = proxy;
   gsap.to(proxy, {
     t: 0,
-    duration: TRANSITION_DUR,
+    duration: TRANSITION_DUR * (startT || 1),
     ease: TRANSITION_EASE,
-    onUpdate: () => setRootOpacity(root, proxy.t),
+    onUpdate: () => setMaterialsOpacity(root, materials, proxy.t),
     onComplete: () => {
       root.visible = false;
       root.position.x = 0;
       root.rotation.y = 0;
+      setFadeMode(materials, false);
     },
   });
 }
 
 function animateSlideIn(root, dir) {
   if (!root) return;
+  const wasVisible = root.visible;
   gsap.killTweensOf(root.position);
   gsap.killTweensOf(root.rotation);
+  if (root.userData.__fadeProxy) gsap.killTweensOf(root.userData.__fadeProxy);
+
   root.visible = true;
-  root.position.x = dir * SIDE_DISTANCE;
-  root.rotation.y = dir * SWOOSH_ROTATION;
-  setRootOpacity(root, 0);
+  if (!wasVisible) {
+    // Cold start — place it off-stage before sliding in. If it was
+    // already visible (we're interrupting an in-progress slide-out),
+    // leave it exactly where it is and let the tween below carry it
+    // back smoothly instead of snapping.
+    root.position.x = dir * SIDE_DISTANCE;
+    root.rotation.y = dir * SWOOSH_ROTATION;
+  }
+
+  const materials = collectMaterials(root);
+  setFadeMode(materials, true);
+
   gsap.to(root.position, {
     x: 0,
     duration: TRANSITION_DUR,
@@ -425,12 +467,16 @@ function animateSlideIn(root, dir) {
     duration: TRANSITION_DUR,
     ease: TRANSITION_EASE,
   });
-  const proxy = { t: 0 };
+
+  const startT = root.userData.__opacityFactor !== undefined ? root.userData.__opacityFactor : 0;
+  const proxy = { t: startT };
+  root.userData.__fadeProxy = proxy;
   gsap.to(proxy, {
     t: 1,
-    duration: TRANSITION_DUR,
+    duration: TRANSITION_DUR * Math.max(1 - startT, 0.35),
     ease: TRANSITION_EASE,
-    onUpdate: () => setRootOpacity(root, proxy.t),
+    onUpdate: () => setMaterialsOpacity(root, materials, proxy.t),
+    onComplete: () => setFadeMode(materials, false),
   });
 }
 
@@ -446,17 +492,22 @@ function currentCameraSpherical() {
   };
 }
 
+// A live reference to the in-flight camera tween, if any — needed so a
+// fast second scroll can actually cancel the first tween instead of both
+// running at once and fighting over camera.position every frame (this
+// was the single biggest source of visible jitter).
+let cameraGlideTween = null;
+
 function glideCameraTo(arc) {
   if (!arc) return;
-  gsap.killTweensOf('__cameraGlide');
+  if (cameraGlideTween) cameraGlideTween.kill();
   const camProxy = currentCameraSpherical();
-  gsap.to(camProxy, {
+  cameraGlideTween = gsap.to(camProxy, {
     a: arc.fromA,
     r: arc.fromR,
     h: arc.fromH,
     duration: TRANSITION_DUR,
     ease: TRANSITION_EASE,
-    id: '__cameraGlide',
     onUpdate: () => {
       camera.position.set(
         Math.sin(camProxy.a) * camProxy.r,
@@ -464,6 +515,9 @@ function glideCameraTo(arc) {
         Math.cos(camProxy.a) * camProxy.r
       );
       camera.lookAt(0, arc.lookY, 0);
+    },
+    onComplete: () => {
+      cameraGlideTween = null;
     },
   });
 }
@@ -482,7 +536,7 @@ function activateChapter(key) {
 
   if (prevKey === 'hero' && state.logoRoot) {
     animateSlideOut(state.logoRoot, dir);
-  } else if (prevKey && state.chapters[prevKey]) {
+  } else if (prevKey && state.chapters[prevKey] && prevKey !== key) {
     animateSlideOut(state.chapters[prevKey].root, dir);
   }
 
@@ -541,6 +595,8 @@ function setupLogo(gltf) {
   root.position.y += 0.4;
   scene.add(root);
   state.logoRoot = root;
+  collectMaterials(root);
+  root.userData.__opacityFactor = 1;
 }
 
 /* ---------------------------------------------------------
