@@ -130,7 +130,7 @@ const MODELS = {
   modern: { url: 'm3-g81-touring.glb', size: 4.6, label: 'MODERN — 2022' },
 };
 
-const LOGO_URL = 'assets/models/m-logo.glb';
+const LOGO_URL = 'm-logo.glb';
 
 /* Camera "drone" arc per chapter — angle in radians (measured around Y),
    radius and height in world units. Every chapter sweeps the camera in
