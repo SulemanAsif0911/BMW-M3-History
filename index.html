@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The M3 Lineage — BMW M3 Through Four Generations</title>
+<meta name="description" content="An interactive, scroll-driven tour through four defining BMW M3 chapters: the 1986 E30 original, the 2001 M3 GTR homologation outlaw, its AC Schnitzer street tribute, and the 2022 M3 Competition Touring." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Loading screen shown until the logo + first chapter model are ready -->
+<div id="loader">
+  <div class="loader-mark">BMW M · INITIALIZING</div>
+  <div class="loader-bar"><div class="fill" id="loader-fill"></div></div>
+  <div class="loader-pct" id="loader-pct">0%</div>
+</div>
+
+<!-- Shown instead of the loader if the essential models fail to fetch,
+     e.g. the page was opened as a local file instead of served over
+     HTTP, or the connection dropped mid-download. -->
+<div id="load-error" hidden>
+  <div class="load-error-mark">CONNECTION ISSUE</div>
+  <h3>The 3D models couldn't load.</h3>
+  <p>
+    This usually means the page was opened directly as a file instead of
+    served over HTTP, or the download to the CDN / model files was
+    interrupted. Serve this folder with a local server
+    (e.g. <code>python3 -m http.server</code>) and make sure you're online,
+    then try again.
+  </p>
+  <button class="cta" id="retry-load">Retry</button>
+</div>
+
+<!-- Fixed WebGL stage — persists behind all scroll content -->
+<canvas id="stage-canvas"></canvas>
+<div id="stage-grid"></div>
+<div id="stage-vignette"></div>
+
+<!-- Signature element: tri-colour M progress rail -->
+<div id="rail" aria-hidden="true">
+  <div class="track"><div class="fill" id="rail-fill"></div></div>
+  <div class="ticks" id="rail-ticks"></div>
+  <div class="label" id="rail-label">ORIGIN</div>
+</div>
+
+<main id="content">
+
+  <!-- HERO -->
+  <section id="hero" class="section">
+    <div class="brandmark"><strong>BMW M</strong> &nbsp;/&nbsp; ARCHIVE No.03</div>
+    <h1>Four cars.<br><span class="accent">One bloodline.</span></h1>
+    <p class="hero-sub">
+      From a homologation special built to legalize a race car, to the first
+      M3 ever fitted with a cargo hold — this is the engineering thread that
+      runs through every generation of the M3. Scroll to move through the
+      archive.
+    </p>
+    <button class="cta" id="get-started">
+      Get started
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M12 20L6 14M12 20L18 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="scroll-hint" id="scroll-hint"><span>Scroll</span><span class="line"></span></div>
+  </section>
+
+  <!-- CHAPTER 01 — E30 -->
+  <section class="section chapter" id="chapter-origin" data-chapter="origin" data-align="left">
+    <div class="chapter-inner">
+      <div class="eyebrow"><span class="dot"></span>Chapter 01 — 1986</div>
+      <div class="chapter-number">01 / 04</div>
+      <div class="chapter-tagline">Where it began</div>
+      <h2>BMW M3<br>E30</h2>
+      <p class="chapter-body">
+        Group A touring car rules forced BMW's hand: build a road car worthy
+        of the racetrack, or don't race at all. The result was flared arches,
+        a reworked chassis, and a screaming four-cylinder derived from
+        BMW Motorsport's own competition engines. It won on Sunday and was
+        sold on Monday — and in doing so, invented a nameplate.
+      </p>
+      <div class="spec-strip">
+        <div class="spec"><span class="k">Engine</span><span class="v">S14 2.3L I4</span></div>
+        <div class="spec"><span class="k">Power</span><span class="v">197 hp @ 6,750 rpm</span></div>
+        <div class="spec"><span class="k">0–60 mph</span><span class="v">6.5 sec</span></div>
+        <div class="spec"><span class="k">Top speed</span><span class="v">146 mph</span></div>
+        <div class="spec"><span class="k">Drive</span><span class="v">RWD · 5-spd manual</span></div>
+        <div class="spec"><span class="k">Built</span><span class="v">1986 – 1991</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAPTER 02 — GTR E46 2001 -->
+  <section class="section chapter" id="chapter-racer" data-chapter="racer" data-align="right">
+    <div class="chapter-inner">
+      <div class="eyebrow"><span class="dot"></span>Chapter 02 — 2001</div>
+      <div class="chapter-number">02 / 04</div>
+      <div class="chapter-tagline">The homologation outlaw</div>
+      <h2>BMW M3<br>GTR</h2>
+      <p class="chapter-body">
+        To beat Porsche in the American Le Mans Series, BMW did the
+        unthinkable and dropped a purpose-built V8 into a car that had only
+        ever run a straight-six. The GTR won seven of ten races and the
+        2001 GT championship on debut — then triggered a rule change that
+        ended its own eligibility within a single season.
+      </p>
+      <div class="spec-strip">
+        <div class="spec"><span class="k">Engine</span><span class="v">P60B40 4.0L V8</span></div>
+        <div class="spec"><span class="k">Power (race)</span><span class="v">up to 500 hp</span></div>
+        <div class="spec"><span class="k">Power (street)</span><span class="v">~350 hp</span></div>
+        <div class="spec"><span class="k">Top speed</span><span class="v">183 mph</span></div>
+        <div class="spec"><span class="k">Drive</span><span class="v">RWD · 6-spd</span></div>
+        <div class="spec"><span class="k">Street-legal built</span><span class="v">10 cars</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAPTER 03 — AC Schnitzer Black Edition -->
+  <section class="section chapter" id="chapter-tuned" data-chapter="tuned" data-align="left">
+    <div class="chapter-inner">
+      <div class="eyebrow"><span class="dot"></span>Chapter 03 — Aftermarket</div>
+      <div class="chapter-number">03 / 04</div>
+      <div class="chapter-tagline">The street tribute</div>
+      <h2>M3 GTR<br>AC Schnitzer Black Edition</h2>
+      <p class="chapter-body">
+        Not every GTR story was written inside BMW Motorsport. Independent
+        tuners took the E46's race-bred silhouette and pushed it further —
+        a wider stance, deeper aerodynamics, and a blacked-out finish built
+        for the road rather than the pit lane. It's the aftermarket's own
+        answer to a car BMW never fully let go of racing.
+      </p>
+      <div class="spec-strip">
+        <div class="spec"><span class="k">Base</span><span class="v">E46 M3 GTR</span></div>
+        <div class="spec"><span class="k">Build</span><span class="v">Widebody + aero kit</span></div>
+        <div class="spec"><span class="k">Finish</span><span class="v">Black Edition livery</span></div>
+        <div class="spec"><span class="k">Focus</span><span class="v">Street presence</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAPTER 04 — G81 Competition Touring -->
+  <section class="section chapter" id="chapter-modern" data-chapter="modern" data-align="right">
+    <div class="chapter-inner">
+      <div class="eyebrow"><span class="dot"></span>Chapter 04 — 2022</div>
+      <div class="chapter-number">04 / 04</div>
+      <div class="chapter-tagline">The first M3 wagon</div>
+      <h2>BMW M3 Competition<br>Touring</h2>
+      <p class="chapter-body">
+        Nearly four decades after the E30, BMW finally built the M3
+        enthusiasts had asked for since the '90s: a wagon. The G81 pairs a
+        twin-turbo inline-six with xDrive all-wheel drive and a full cargo
+        hold, proving that a homologation bloodline and a school run aren't
+        mutually exclusive.
+      </p>
+      <div class="spec-strip">
+        <div class="spec"><span class="k">Engine</span><span class="v">S58 3.0L Turbo I6</span></div>
+        <div class="spec"><span class="k">Power</span><span class="v">503 hp @ 6,250 rpm</span></div>
+        <div class="spec"><span class="k">0–60 mph</span><span class="v">3.4 sec</span></div>
+        <div class="spec"><span class="k">Top speed</span><span class="v">155 mph (ltd.)</span></div>
+        <div class="spec"><span class="k">Drive</span><span class="v">xDrive AWD</span></div>
+        <div class="spec"><span class="k">Cargo</span><span class="v">500L / 1,510L</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <section class="section" id="footer">
+    <div class="eyebrow"><span class="dot"></span>End of archive</div>
+    <h3>The thread continues.</h3>
+    <p class="hero-sub">
+      Four cars, four decades, one obsession with making the M3 faster,
+      lighter, or simply more itself. The next chapter is still being
+      engineered in Munich.
+    </p>
+    <div class="credits">
+      3D archive — BMW M3 Competition Touring (G81), BMW M3 (E30), BMW M3 GTR
+      (E46, 2001), BMW M3 GTR E46 AC Schnitzer Black Edition, BMW M logo.
+      Specifications sourced from public manufacturer and press data for
+      reference; the AC Schnitzer Black Edition is presented as an
+      independent aftermarket tribute build.
+    </div>
+  </section>
+
+</main>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
