@@ -124,10 +124,10 @@ function loadGLB(url) {
 const CHAPTER_ORDER = ['origin', 'racer', 'tuned', 'modern'];
 
 const MODELS = {
-  origin: { url: 'assets/models/m3-e30.glb', size: 4.2, label: 'ORIGIN — 1986' },
-  racer: { url: 'assets/models/m3-gtr-e46-2001.glb', size: 4.35, label: 'RACER — 2001' },
-  tuned: { url: 'assets/models/m3-gtr-e46-schnitzer.glb', size: 4.45, label: 'TUNED — SCHNITZER' },
-  modern: { url: 'assets/models/m3-g81-touring.glb', size: 4.6, label: 'MODERN — 2022' },
+  origin: { url: 'm3-e30.glb', size: 4.2, label: 'ORIGIN — 1986' },
+  racer: { url: 'm3-gtr-e46-2001.glb', size: 4.35, label: 'RACER — 2001' },
+  tuned: { url: 'm3-gtr-e46-schnitzer.glb', size: 4.45, label: 'TUNED — SCHNITZER' },
+  modern: { url: 'm3-g81-touring.glb', size: 4.6, label: 'MODERN — 2022' },
 };
 
 const LOGO_URL = 'assets/models/m-logo.glb';
